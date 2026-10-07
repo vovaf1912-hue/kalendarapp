@@ -23,12 +23,31 @@
   .scrollbar::-webkit-scrollbar{width:7px;height:7px}.scrollbar::-webkit-scrollbar-thumb{background:#263044;border-radius:20px}
   body[data-theme="light"] .scrollbar::-webkit-scrollbar-thumb{background:#cbd5e1}
   .hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{scrollbar-width:none}
-  .week-head,.week-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
-  .week-head{border-bottom:1px solid rgba(255,255,255,.06);background:#0b0f17}
-  body[data-theme="light"] .week-head{background:#f8fafc;border-color:rgba(15,23,42,.08)}
-  .week-day{min-width:0;padding:12px;border-right:1px solid rgba(255,255,255,.05)}.week-day:last-child{border-right:0}
-  .week-col{min-height:540px;padding:10px;border-right:1px solid rgba(255,255,255,.05)}.week-col:last-child{border-right:0}
-  body[data-theme="light"] .week-day,body[data-theme="light"] .week-col{border-color:rgba(15,23,42,.07)}
+  .month-head,.month-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+  .month-head{border-bottom:1px solid rgba(255,255,255,.06);background:#0b0f17}
+  body[data-theme="light"] .month-head{background:#f8fafc;border-color:rgba(15,23,42,.08)}
+  .month-weekday{min-width:0;padding:10px 8px;text-align:center;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b}
+  .month-cell{min-width:0;min-height:116px;padding:8px;border-right:1px solid rgba(255,255,255,.05);border-bottom:1px solid rgba(255,255,255,.05);background:rgba(255,255,255,.012);transition:.16s ease}
+  .month-cell:nth-child(7n){border-right:0}
+  .month-cell:hover{background:rgba(59,130,246,.035)}
+  .month-cell.muted{opacity:.42}
+  .month-cell.today{background:rgba(59,130,246,.045)}
+  .month-date{width:28px;height:28px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .month-cell.today .month-date{background:#fff;color:#111827;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+  .month-add{opacity:0;transition:.16s ease}
+  .month-cell:hover .month-add{opacity:1}
+  .month-event{display:flex;align-items:center;gap:5px;width:100%;min-width:0;padding:5px 6px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:#0e141f;font-size:11px;line-height:1.15;cursor:pointer;transition:.16s ease}
+  .month-event:hover{transform:translateY(-1px);border-color:rgba(96,165,250,.45)}
+  .month-event-dot{width:5px;height:5px;border-radius:999px;flex:0 0 auto;background:#60a5fa}
+  .month-more{font-size:10px;color:#64748b;padding:2px 4px;cursor:pointer}
+  body[data-theme="light"] .month-head{color:#0f172a}
+  body[data-theme="light"] .month-cell{border-color:rgba(15,23,42,.07);background:rgba(15,23,42,.012)}
+  body[data-theme="light"] .month-cell:hover{background:rgba(37,99,235,.035)}
+  body[data-theme="light"] .month-event{background:#fff;border-color:rgba(15,23,42,.10);color:#111827}
+  body[data-theme="light"] .month-event .text-slate-500{color:#64748b!important}
+  body[data-theme="light"] .month-cell.today{background:rgba(37,99,235,.04)}
+  body[data-theme="light"] .month-cell.today .month-date{background:#111827;color:#fff}
+  @media(max-width:767px){.month-weekday{padding:8px 2px;font-size:9px}.month-cell{min-height:88px;padding:5px}.month-date{width:25px;height:25px;font-size:11px}.month-event{padding:4px 4px;border-radius:7px;font-size:9px;gap:3px}.month-event-dot{width:4px;height:4px}.month-more{font-size:9px;padding:2px 1px}.month-add{opacity:1;font-size:12px}}
   body[data-theme="light"] .event{background:#fff!important;border-color:rgba(15,23,42,.10)!important;color:#111827}
   body[data-theme="light"] .event .text-slate-400{color:#475569!important}
   body[data-theme="light"] .event .text-slate-500{color:#64748b!important}
@@ -79,7 +98,7 @@
   body[data-theme="light"] #statusMenu button{color:#334155!important}
   body[data-theme="light"] #statusMenu button:hover{background:#e2e8f0!important}
   body[data-theme="light"] .glass .border-t{border-color:#e2e8f0!important}
-  @media(max-width:767px){.desktop-only{display:none!important}.slot{min-height:88px}.week-head,.week-grid{grid-template-columns:repeat(7,minmax(118px,1fr))}.week-col{min-height:520px}}
+  @media(max-width:767px){.desktop-only{display:none!important}.slot{min-height:88px}}
   @media(min-width:768px){.mobile-only{display:none!important}}
 </style>
 </head>
@@ -103,7 +122,7 @@ const sb = hasSupabase ? supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPAB
 const state = {
   authReady: false,
   session: null,
-  view: "day",
+  view: "month",
   date: new Date(),
   events: [],
   loading: false,
@@ -260,25 +279,26 @@ function header(){
 function render(){
   if(!state.authReady || !isAuthed()){ document.getElementById("app").innerHTML=authScreen(); bindAuth(); return; }
   const d=state.date;
+  const monthEvents=filteredEvents().filter(e=>e.date>=monthGridStart(d) && e.date<=monthGridEnd(d)).length;
   document.getElementById("app").innerHTML=`
     ${header()}
-    <main class="max-w-7xl mx-auto p-3 sm:p-5">
+    <main class="max-w-7xl mx-auto p-2 sm:p-5">
       <section class="glass neon rounded-2xl overflow-hidden">
-        <div class="p-3 sm:p-4 border-b border-white/5 flex flex-wrap items-center gap-2">
-          <button class="btn px-3 py-2 rounded-xl bg-white/[.05] border border-white/10" onclick="moveDate(-1)">←</button>
-          <button class="btn px-3 py-2 rounded-xl bg-white/[.05] border border-white/10" onclick="goToday()">Сегодня</button>
-          <button class="btn px-3 py-2 rounded-xl bg-white/[.05] border border-white/10" onclick="moveDate(1)">→</button>
-          <div class="ml-1 sm:ml-2">
-            <div class="font-bold capitalize">${esc(prettyDate(d))}</div>
-            <div class="text-xs text-slate-500">${state.events.filter(e=>e.date===isoDate(d)).length} записей</div>
-          </div>
-          <div class="ml-auto flex bg-white/[.03] rounded-xl p-1 border border-white/5">
-            ${["day","week"].map(v=>`<button class="btn px-3 py-1.5 rounded-lg text-sm ${state.view===v?"bg-blue-500 text-white":"text-slate-400"}" onclick="setView('${v}')">${v==="day"?"День":"Неделя"}</button>`).join("")}
+        <div class="p-3 sm:p-4 border-b border-white/5 flex items-center gap-2">
+          <button class="btn w-10 h-10 rounded-xl bg-white/[.05] border border-white/10 text-lg" onclick="moveDate(-1)" aria-label="Предыдущий месяц">←</button>
+          <button class="btn px-3 py-2 rounded-xl bg-white/[.05] border border-white/10 text-sm" onclick="goToday()">Сегодня</button>
+          <button class="btn w-10 h-10 rounded-xl bg-white/[.05] border border-white/10 text-lg" onclick="moveDate(1)" aria-label="Следующий месяц">→</button>
+          <button class="ml-1 sm:ml-2 text-left group" onclick="goToday()">
+            <div class="font-bold text-lg sm:text-xl capitalize group-hover:text-blue-300 transition">${esc(d.toLocaleDateString("ru-RU",{month:"long",year:"numeric"}))}</div>
+            <div class="text-[11px] text-slate-500">${monthEvents} ${plural(monthEvents,"запись","записи","записей")} в календаре</div>
+          </button>
+          <div class="ml-auto hidden sm:flex items-center gap-2">
+            <div class="px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-300">Месяц</div>
           </div>
         </div>
-        ${state.loading?`<div class="p-10 text-center text-slate-500">Загрузка...</div>`:(state.view==="day"?dayView(d):weekView(d))}
+        <div id="calendarContent">${state.loading?`<div class="p-10 text-center text-slate-500">Загрузка...</div>`:monthView(d)}</div>
       </section>
-      <div class="mt-4 text-center text-xs text-slate-600">${hasSupabase?"Данные синхронизируются через Supabase":"Supabase не настроен"}</div>
+      <div class="mt-3 text-center text-xs text-slate-600">${hasSupabase?"Данные синхронизируются через Supabase":"Supabase не настроен"}</div>
     </main>
     ${state.modal==="event"?eventModal():state.modal==="settings"?settingsModal():""}
   `;
@@ -293,10 +313,73 @@ function bindAuth(){
 function bindSearch(){
   for(const id of ["search","searchMobile"]){
     const el=document.getElementById(id);
-    if(el) el.addEventListener("input",e=>{state.search=e.target.value;render(); requestAnimationFrame(()=>{const x=document.getElementById(id); if(x){x.focus();x.setSelectionRange(x.value.length,x.value.length)}})});
+    if(el) el.addEventListener("input",e=>{
+      state.search=e.target.value;
+      const box=document.getElementById("calendarContent");
+      if(box) box.innerHTML=state.view==="day"?dayView(state.date):monthView(state.date);
+    });
   }
 }
 
+function plural(n,a,b,c){
+  n=Math.abs(n)%100; const n1=n%10;
+  if(n>10&&n<20)return c; if(n1>1&&n1<5)return b; if(n1===1)return a; return c;
+}
+function monthGridStart(d){
+  const first=new Date(d.getFullYear(),d.getMonth(),1);
+  return addDays(first,-((first.getDay()+6)%7));
+}
+function monthGridEnd(d){
+  const last=new Date(d.getFullYear(),d.getMonth()+1,0);
+  return addDays(last,6-((last.getDay()+6)%7));
+}
+function moveMonth(n){
+  state.date=new Date(state.date.getFullYear(),state.date.getMonth()+n,1);
+  render();
+}
+function monthView(d){
+  const start=monthGridStart(d), days=Array.from({length:42},(_,i)=>addDays(start,i));
+  const labels=["Пн","Вт","Ср","Чт","Пт","Сб","Вс"];
+  return `<div class="overflow-hidden">
+    <div class="month-head">${labels.map(x=>`<div class="month-weekday">${x}</div>`).join("")}</div>
+    <div class="month-grid">${days.map(day=>{
+      const ds=isoDate(day), inMonth=day.getMonth()===d.getMonth(), today=isToday(day);
+      const ev=filteredEvents().filter(e=>e.date===ds).sort((a,b)=>timeToMin(a.time)-timeToMin(b.time));
+      const shown=ev.slice(0,3), extra=ev.length-3;
+      return `<div class="month-cell ${inMonth?"":"muted"} ${today?"today":""}" onclick="openDay('${ds}')">
+        <div class="flex items-center justify-between gap-1 mb-1">
+          <div class="month-date">${day.getDate()}</div>
+          <button class="month-add text-slate-500 hover:text-blue-300" onclick="event.stopPropagation();openNew('${ds}','10:00')" aria-label="Добавить запись">＋</button>
+        </div>
+        <div class="space-y-1">${shown.map(monthEvent).join("")}
+          ${extra>0?`<div class="month-more" onclick="event.stopPropagation();openDay('${ds}')">+ ещё ${extra}</div>`:""}
+        </div>
+      </div>`;
+    }).join("")}</div>
+  </div>`;
+}
+function openDay(ds){
+  state.date=new Date(ds+"T12:00:00");
+  state.view="day";
+  renderDayView();
+}
+function renderDayView(){
+  const d=state.date;
+  document.getElementById("app").innerHTML=`${header()}
+    <main class="max-w-7xl mx-auto p-3 sm:p-5">
+      <section class="glass neon rounded-2xl overflow-hidden">
+        <div class="p-3 sm:p-4 border-b border-white/5 flex items-center gap-2">
+          <button class="btn px-3 py-2 rounded-xl bg-white/[.05] border border-white/10" onclick="backToMonth()">← Месяц</button>
+          <div class="ml-1"><div class="font-bold capitalize">${esc(prettyDate(d))}</div><div class="text-xs text-slate-500">${filteredEvents().filter(e=>e.date===isoDate(d)).length} записей</div></div>
+          <button class="ml-auto btn px-3 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-semibold text-sm" onclick="openNew('${isoDate(d)}','10:00')">+ Запись</button>
+        </div>
+        <div id="calendarContent">${state.loading?`<div class="p-10 text-center text-slate-500">Загрузка...</div>`:dayView(d)}</div>
+      </section>
+    </main>
+    ${state.modal==="event"?eventModal():state.modal==="settings"?settingsModal():""}`;
+  bindSearch();
+}
+function backToMonth(){state.view="month";render()}
 function dayView(d){
   const date=isoDate(d), events=filteredEvents().filter(e=>e.date===date);
   const start=8*60,end=20*60,step=60;
@@ -313,13 +396,13 @@ function dayView(d){
   if(late.length) html+=`<div class="grid grid-cols-[58px_1fr] sm:grid-cols-[80px_1fr] min-h-[86px]"><div class="p-3 text-xs text-slate-500">${minToTime(end)}</div><div class="slot p-2 border-l border-white/5">${late.map(eventCard).join("")}</div></div>`;
   return html+"</div>";
 }
-
-function weekView(d){
-  const start=startOfWeek(d), days=Array.from({length:7},(_,i)=>addDays(start,i));
-  return `<div class="overflow-x-auto scrollbar"><div class="min-w-[820px]">
-    <div class="week-head">${days.map(day=>`<div class="week-day"><div class="text-[11px] text-slate-500 uppercase">${day.toLocaleDateString("ru-RU",{weekday:"short"})}</div><div class="font-bold ${isToday(day)?"text-blue-500":""}">${day.getDate()} ${day.toLocaleDateString("ru-RU",{month:"short"})}</div></div>`).join("")}</div>
-    <div class="week-grid">${days.map(day=>{const ds=isoDate(day),ev=filteredEvents().filter(e=>e.date===ds).sort((a,b)=>timeToMin(a.time)-timeToMin(b.time));return `<div class="week-col"><div class="space-y-2">${ev.map(eventCard).join("")}<button class="btn w-full mt-1 py-2 rounded-xl border border-dashed border-white/10 text-slate-500 hover:text-slate-300" onclick="openNew('${ds}','10:00')">+ запись</button></div></div>`}).join("")}</div>
-  </div></div>`;
+function monthEvent(e){
+  const dot=e.status==="ready"?"#34d399":e.status==="work"?"#fbbf24":e.status==="cancelled"?"#f87171":"#60a5fa";
+  return `<div class="month-event" onclick="event.stopPropagation();openEdit('${e.id}')" title="${esc(`${e.time} · ${e.car||"Без машины"}${e.work?" · "+e.work:""}`)}">
+    <span class="month-event-dot" style="background:${dot}"></span>
+    <span class="text-slate-500 shrink-0">${esc(e.time)}</span>
+    <span class="font-semibold truncate">${esc(e.car||"Без машины")}</span>
+  </div>`;
 }
 
 function eventCard(e){
@@ -390,13 +473,13 @@ function setTheme(theme){document.body.dataset.theme=theme;localStorage.setItem(
 
 function toggleStatusMenu(){document.getElementById("statusMenu")?.classList.toggle("hidden");}
 function chooseStatus(s){const i=document.querySelector('input[name="status"]'); const l=document.getElementById("statusLabel"); if(i)i.value=s; if(l)l.textContent=statusLabel(s); document.getElementById("statusMenu")?.classList.add("hidden");}
-function openNew(date=isoDate(state.date),time="10:00"){state.selectedEvent={date,time,status:"planned"};state.modal="event";render();setTimeout(()=>document.querySelector('[name="car"]')?.focus(),50)}
+function openNew(date=isoDate(state.date),time="10:00"){state.selectedEvent={date,time,status:"planned"};state.modal="event";render()}
 function openEdit(id){state.selectedEvent=state.events.find(e=>e.id===id);state.modal="event";render()}
 function openSettings(){state.modal="settings";render()}
 function closeModal(){state.modal=null;state.selectedEvent=null;render()}
 function setView(v){state.view=v;render()}
-function goToday(){state.date=new Date();render()}
-function moveDate(n){state.date=addDays(state.date,state.view==="week"?n*7:n);render()}
+function goToday(){state.date=new Date();state.view="month";render()}
+function moveDate(n){if(state.view==="day"){state.date=addDays(state.date,n);renderDayView();}else{moveMonth(n)}}
 
 document.addEventListener("submit",async e=>{
   if(e.target.id!=="eventForm")return;
