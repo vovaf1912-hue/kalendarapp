@@ -36,9 +36,14 @@
   .month-cell.today .month-date{background:#fff;color:#111827;box-shadow:0 0 0 2px rgba(255,255,255,.08)}
   .month-add{opacity:0;transition:.16s ease}
   .month-cell:hover .month-add{opacity:1}
-  .month-event{display:flex;align-items:center;gap:5px;width:100%;min-width:0;padding:5px 6px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:#0e141f;font-size:11px;line-height:1.15;cursor:pointer;transition:.16s ease}
-  .month-event:hover{transform:translateY(-1px);border-color:rgba(96,165,250,.45)}
-  .month-event-dot{width:5px;height:5px;border-radius:999px;flex:0 0 auto;background:#60a5fa}
+  .month-event{display:block;width:100%;min-width:0;padding:4px 5px;border:1px solid rgba(255,255,255,.07);border-radius:8px;background:#0e141f;font-size:11px;line-height:1.15;cursor:pointer;transition:.16s ease}
+  .month-event:hover{transform:translateY(-1px);border-color:var(--event-color,#60a5fa)}
+  .month-event-main{display:flex;align-items:center;gap:4px;min-width:0}
+  .month-event-dot{width:6px;height:6px;border-radius:999px;flex:0 0 auto;background:#60a5fa}
+  .month-event-time{color:#94a3b8;flex:0 0 auto;font-size:10px}
+  .month-event-work{padding-left:10px;margin-top:3px;font-size:10px;line-height:1.15;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  body[data-theme="light"] .month-event-work{color:#64748b}
+  body[data-theme="light"] .month-event-time{color:#64748b}
   .month-more{font-size:10px;color:#64748b;padding:2px 4px;cursor:pointer}
   body[data-theme="light"] .month-head{color:#0f172a}
   body[data-theme="light"] .month-cell{border-color:rgba(15,23,42,.07);background:rgba(15,23,42,.012)}
@@ -47,7 +52,7 @@
   body[data-theme="light"] .month-event .text-slate-500{color:#64748b!important}
   body[data-theme="light"] .month-cell.today{background:rgba(37,99,235,.04)}
   body[data-theme="light"] .month-cell.today .month-date{background:#111827;color:#fff}
-  @media(max-width:767px){.month-weekday{padding:8px 2px;font-size:9px}.month-cell{min-height:88px;padding:5px}.month-date{width:25px;height:25px;font-size:11px}.month-event{padding:4px 4px;border-radius:7px;font-size:9px;gap:3px}.month-event-dot{width:4px;height:4px}.month-more{font-size:9px;padding:2px 1px}.month-add{opacity:1;font-size:12px}}
+  @media(max-width:767px){.month-weekday{padding:8px 2px;font-size:9px}.month-cell{min-height:88px;padding:5px}.month-date{width:25px;height:25px;font-size:11px}.month-event{padding:4px 3px;border-radius:7px;font-size:9px}.month-event-main{gap:3px}.month-event-dot{width:4px;height:4px}.month-event-time{font-size:8px}.month-event-work{font-size:8px;padding-left:7px;margin-top:2px}.month-more{font-size:9px;padding:2px 1px}.month-add{opacity:1;font-size:12px}}
   body[data-theme="light"] .event{background:#fff!important;border-color:rgba(15,23,42,.10)!important;color:#111827}
   body[data-theme="light"] .event .text-slate-400{color:#475569!important}
   body[data-theme="light"] .event .text-slate-500{color:#64748b!important}
@@ -150,7 +155,7 @@ function normalizeEvent(e){
     id:e.id, date:e.date, time:String(e.time||"").slice(0,5),
     car:e.car||"", client:e.client||"", phone:e.phone||"",
     work:e.work||"", note:e.note||"", status:e.status||"planned",
-    created_at:e.created_at
+    color:e.color||"#60a5fa", created_at:e.created_at
   };
 }
 
@@ -397,12 +402,24 @@ function dayView(d){
   return html+"</div>";
 }
 function monthEvent(e){
-  const dot=e.status==="ready"?"#34d399":e.status==="work"?"#fbbf24":e.status==="cancelled"?"#f87171":"#60a5fa";
-  return `<div class="month-event" onclick="event.stopPropagation();openEdit('${e.id}')" title="${esc(`${e.time} · ${e.car||"Без машины"}${e.work?" · "+e.work:""}`)}">
-    <span class="month-event-dot" style="background:${dot}"></span>
-    <span class="text-slate-500 shrink-0">${esc(e.time)}</span>
-    <span class="font-semibold truncate">${esc(e.car||"Без машины")}</span>
+  const color=validColor(e.color)?e.color:"#60a5fa";
+  const time=String(e.time||"").slice(0,5);
+  return `<div class="month-event" style="--event-color:${color};border-color:${color}55" onclick="event.stopPropagation();openEdit('${e.id}')" title="${esc(`${time} · ${e.car||"Без машины"}${e.work?" · "+e.work:""}`)}">
+    <div class="month-event-main"><span class="month-event-dot" style="background:${color}"></span><span class="month-event-time">${esc(time)}</span><span class="font-semibold truncate">${esc(e.car||"Без машины")}</span></div>
+    ${e.work?`<div class="month-event-work">${esc(e.work)}</div>`:""}
   </div>`;
+}
+function validColor(value){return /^#[0-9a-f]{6}$/i.test(String(value||""));}
+function chooseColor(color){
+  if(!validColor(color))return;
+  const input=document.querySelector('input[name="color"]'); if(input)input.value=color;
+  document.querySelectorAll('[data-color-option]').forEach(btn=>{
+    const active=btn.dataset.colorOption.toLowerCase()===color.toLowerCase();
+    btn.style.outline=active?'3px solid rgba(255,255,255,.9)':'none';
+    btn.style.outlineOffset=active?'2px':'0';
+    btn.setAttribute('aria-pressed',String(active));
+  });
+  const preview=document.getElementById('colorPreview'); if(preview)preview.style.background=color;
 }
 
 function eventCard(e){
@@ -437,6 +454,13 @@ function eventModal(){
           <label class="block"><span class="text-xs text-slate-500">Телефон</span><input name="phone" type="tel" placeholder="+7 900 000-00-00" value="${esc(e.phone||"+7 ")}" class="mt-1 w-full rounded-xl bg-white/[.03] border border-white/10 px-3 py-3"></label>
         </div>
         <label class="block"><span class="text-xs text-slate-500">Работа</span><input name="work" placeholder="Диагностика, ТО..." value="${esc(e.work||"")}" class="mt-1 w-full rounded-xl bg-white/[.03] border border-white/10 px-3 py-3"></label>
+        <div class="block"><span class="text-xs text-slate-500">Цвет записи</span>
+          <input type="hidden" name="color" value="${esc(validColor(e.color)?e.color:"#60a5fa")}">
+          <div class="flex items-center gap-3 mt-2"><div id="colorPreview" class="w-7 h-7 rounded-full border border-white/20" style="background:${esc(validColor(e.color)?e.color:"#60a5fa")}"></div><div class="flex flex-wrap gap-3">
+            ${["#60a5fa","#34d399","#fbbf24","#f87171","#a78bfa","#fb923c","#f472b6","#22d3ee"].map(c=>`<button type="button" data-color-option="${c}" aria-label="Цвет ${c}" aria-pressed="${(validColor(e.color)?e.color:"#60a5fa").toLowerCase()===c.toLowerCase()}" onclick="chooseColor('${c}')" class="w-7 h-7 rounded-full border border-white/20" style="background:${c};${(validColor(e.color)?e.color:"#60a5fa").toLowerCase()===c.toLowerCase()?"outline:3px solid rgba(255,255,255,.9);outline-offset:2px;":""}"></button>`).join("")}
+          </div></div>
+          <div class="text-[11px] text-slate-500 mt-2">Цвет будет виден всем сотрудникам в общем календаре.</div>
+        </div>
         <label class="block"><span class="text-xs text-slate-500">Комментарий</span><textarea name="note" rows="3" placeholder="Дополнительная информация" class="mt-1 w-full rounded-xl bg-white/[.03] border border-white/10 px-3 py-3">${esc(e.note||"")}</textarea></label>
         <label class="block"><span class="text-xs text-slate-500">Статус</span>
           <div class="relative mt-1" id="statusSelect">
@@ -499,7 +523,7 @@ async function removeCurrent(){
 }
 
 document.body.dataset.theme=localStorage.getItem("garage_calendar_theme")||"dark";
-if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(console.warn));
+if ('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=monthly-color-20261009').catch(console.warn));
 
 async function boot(){
   if(!hasSupabase){ state.authReady=true; render(); return; }
